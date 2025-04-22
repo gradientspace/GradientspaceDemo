@@ -17,6 +17,9 @@
     <ProjectReference Include="..\submodules\GradientspaceCore\Build\vs2022\GradientspaceCore.vcxproj">
       <Project>{31cddc33-a9c4-481e-b4aa-f24afbefe596}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\submodules\GradientspaceIO\Build\vs2022\GradientspaceIO.vcxproj">
+      <Project>{376e8d9e-e307-43be-840c-d81ee3682123}</Project>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -57,13 +60,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-	
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -73,7 +76,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -85,18 +89,16 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-  
-  
-    <Target Name="AfterBuild">
-        <ItemGroup>
-            <!-- Because this ItemGroup is inside the target, this will enumerate
+  <Target Name="AfterBuild">
+    <ItemGroup>
+      <!-- Because this ItemGroup is inside the target, this will enumerate
                  all files just before calling Copy. If the ItemGroup were outside
                  the target , it would enumerate the files during evaluation, before
                  the build starts, which may miss files created during the build. -->
-            <GradientspaceCoreBinaries Include="$(ProjectDir)..\submodules\GradientspaceCore\Build\vs2022\Binaries\x64\$(Configuration)\gradientspace_core.*"/>
-        </ItemGroup>	
-	
-		<Copy SourceFiles="@(GradientspaceCoreBinaries)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
-    </Target>
-  
+      <GradientspaceCoreBinaries Include="$(ProjectDir)..\submodules\GradientspaceCore\Build\vs2022\Binaries\x64\$(Configuration)\gradientspace_core.*" />
+      <GradientspaceIOBinaries Include="$(ProjectDir)..\submodules\GradientspaceIO\Build\vs2022\Binaries\x64\$(Configuration)\gradientspace_io.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(GradientspaceCoreBinaries)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="@(GradientspaceIOBinaries)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+  </Target>
 </Project>
