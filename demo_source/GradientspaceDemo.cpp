@@ -3,10 +3,13 @@
 
 #include <iostream>
 
-#include "DenseMesh.h"
+#include "Mesh/DenseMesh.h"
 
 int main()
 {
     std::cout << "Hello World!\n";
+
+    GS::DenseMesh DenseMesh;
+
 }
 
