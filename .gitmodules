@@ -1,0 +1,3 @@
+[submodule "submodules/GradientspaceCore"]
+	path = submodules/GradientspaceCore
+	url = https://github.com/gradientspace/GradientspaceCore
