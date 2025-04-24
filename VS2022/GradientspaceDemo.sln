@@ -12,19 +12,26 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
+		Debug-Clang|x64 = Debug-Clang|x64
 		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{50261382-CA19-4111-8728-4F9953D24448}.Debug|x64.ActiveCfg = Debug|x64
 		{50261382-CA19-4111-8728-4F9953D24448}.Debug|x64.Build.0 = Debug|x64
+		{50261382-CA19-4111-8728-4F9953D24448}.Debug-Clang|x64.ActiveCfg = Debug-Clang|x64
+		{50261382-CA19-4111-8728-4F9953D24448}.Debug-Clang|x64.Build.0 = Debug-Clang|x64
 		{50261382-CA19-4111-8728-4F9953D24448}.Release|x64.ActiveCfg = Release|x64
 		{50261382-CA19-4111-8728-4F9953D24448}.Release|x64.Build.0 = Release|x64
 		{31CDDC33-A9C4-481E-B4AA-F24AFBEFE596}.Debug|x64.ActiveCfg = Debug|x64
 		{31CDDC33-A9C4-481E-B4AA-F24AFBEFE596}.Debug|x64.Build.0 = Debug|x64
+		{31CDDC33-A9C4-481E-B4AA-F24AFBEFE596}.Debug-Clang|x64.ActiveCfg = Debug-Clang|x64
+		{31CDDC33-A9C4-481E-B4AA-F24AFBEFE596}.Debug-Clang|x64.Build.0 = Debug-Clang|x64
 		{31CDDC33-A9C4-481E-B4AA-F24AFBEFE596}.Release|x64.ActiveCfg = Release|x64
 		{31CDDC33-A9C4-481E-B4AA-F24AFBEFE596}.Release|x64.Build.0 = Release|x64
 		{376E8D9E-E307-43BE-840C-D81EE3682123}.Debug|x64.ActiveCfg = Debug|x64
 		{376E8D9E-E307-43BE-840C-D81EE3682123}.Debug|x64.Build.0 = Debug|x64
+		{376E8D9E-E307-43BE-840C-D81EE3682123}.Debug-Clang|x64.ActiveCfg = Debug-Clang|x64
+		{376E8D9E-E307-43BE-840C-D81EE3682123}.Debug-Clang|x64.Build.0 = Debug-Clang|x64
 		{376E8D9E-E307-43BE-840C-D81EE3682123}.Release|x64.ActiveCfg = Release|x64
 		{376E8D9E-E307-43BE-840C-D81EE3682123}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
