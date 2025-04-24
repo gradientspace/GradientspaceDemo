@@ -13,6 +13,15 @@
       "cacheVariables": {
 		"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
       }
-    }
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux",
+      "generator": "Unix Makefiles",
+      "binaryDir": "build/cmake-linux",
+      "cacheVariables": {
+		"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+      }
+    }	
   ]
 }
