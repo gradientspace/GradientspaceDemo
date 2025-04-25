@@ -22,6 +22,8 @@ add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/submodules/GradientspaceIO ${CMAKE
 
 add_executable(gradientspace_demo ${MODULE_FILES})
 
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT gradientspace_demo)
+
 target_link_libraries(gradientspace_demo gradientspace_core)
 target_link_libraries(gradientspace_demo gradientspace_io)
 
