@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GradientspaceCore", "..\sub
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GradientspaceIO", "..\submodules\GradientspaceIO\Build\vs2022\GradientspaceIO.vcxproj", "{376E8D9E-E307-43BE-840C-D81EE3682123}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GradientspaceGrid", "..\submodules\GradientspaceGrid\Build\vs2022\GradientspaceGrid.vcxproj", "{BA9F00E1-882F-4283-B65B-1568F2F2FDA2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -34,6 +36,12 @@ Global
 		{376E8D9E-E307-43BE-840C-D81EE3682123}.Debug-Clang|x64.Build.0 = Debug-Clang|x64
 		{376E8D9E-E307-43BE-840C-D81EE3682123}.Release|x64.ActiveCfg = Release|x64
 		{376E8D9E-E307-43BE-840C-D81EE3682123}.Release|x64.Build.0 = Release|x64
+		{BA9F00E1-882F-4283-B65B-1568F2F2FDA2}.Debug|x64.ActiveCfg = Debug|x64
+		{BA9F00E1-882F-4283-B65B-1568F2F2FDA2}.Debug|x64.Build.0 = Debug|x64
+		{BA9F00E1-882F-4283-B65B-1568F2F2FDA2}.Debug-Clang|x64.ActiveCfg = Debug-Clang|x64
+		{BA9F00E1-882F-4283-B65B-1568F2F2FDA2}.Debug-Clang|x64.Build.0 = Debug-Clang|x64
+		{BA9F00E1-882F-4283-B65B-1568F2F2FDA2}.Release|x64.ActiveCfg = Release|x64
+		{BA9F00E1-882F-4283-B65B-1568F2F2FDA2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

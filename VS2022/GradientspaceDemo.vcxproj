@@ -21,6 +21,9 @@
     <ProjectReference Include="..\submodules\GradientspaceCore\Build\vs2022\GradientspaceCore.vcxproj">
       <Project>{31cddc33-a9c4-481e-b4aa-f24afbefe596}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\submodules\GradientspaceGrid\Build\vs2022\GradientspaceGrid.vcxproj">
+      <Project>{ba9f00e1-882f-4283-b65b-1568f2f2fda2}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\submodules\GradientspaceIO\Build\vs2022\GradientspaceIO.vcxproj">
       <Project>{376e8d9e-e307-43be-840c-d81ee3682123}</Project>
     </ProjectReference>
@@ -73,7 +76,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;..\submodules\GradientspaceGrid\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -87,7 +90,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;..\submodules\GradientspaceGrid\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -103,7 +106,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\submodules\GradientspaceCore\Public;..\submodules\GradientspaceIO\Public;..\submodules\GradientspaceGrid\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -124,8 +127,10 @@
                  the build starts, which may miss files created during the build. -->
       <GradientspaceCoreBinaries Include="$(ProjectDir)..\submodules\GradientspaceCore\Build\vs2022\Binaries\x64\$(Configuration)\gradientspace_core.*" />
       <GradientspaceIOBinaries Include="$(ProjectDir)..\submodules\GradientspaceIO\Build\vs2022\Binaries\x64\$(Configuration)\gradientspace_io.*" />
+	  <GradientspaceGridBinaries Include="$(ProjectDir)..\submodules\GradientspaceGrid\Build\vs2022\Binaries\x64\$(Configuration)\gradientspace_grid.*" />
     </ItemGroup>
     <Copy SourceFiles="@(GradientspaceCoreBinaries)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
     <Copy SourceFiles="@(GradientspaceIOBinaries)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+	<Copy SourceFiles="@(GradientspaceGridBinaries)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
   </Target>
 </Project>

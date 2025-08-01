@@ -19,6 +19,7 @@ set(MODULE_FILES ${DEMO_SOURCE_FILES})
 
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/submodules/GradientspaceCore ${CMAKE_CURRENT_BINARY_DIR}/gscore_bin )
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/submodules/GradientspaceIO ${CMAKE_CURRENT_BINARY_DIR}/gsio_bin )
+add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/submodules/GradientspaceGrid ${CMAKE_CURRENT_BINARY_DIR}/gsgrid_bin )
 
 add_executable(gradientspace_demo ${MODULE_FILES})
 
@@ -26,6 +27,7 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT g
 
 target_link_libraries(gradientspace_demo gradientspace_core)
 target_link_libraries(gradientspace_demo gradientspace_io)
+target_link_libraries(gradientspace_demo gradientspace_grid)
 
 
 # from https://stackoverflow.com/questions/14089284/copy-all-dlls-that-an-executable-links-to-to-the-executable-directory
