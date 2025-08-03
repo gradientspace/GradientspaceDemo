@@ -1,6 +1,6 @@
 # GradientspaceDemo
 
-This is a demo/sample project for the Gradientspace C++ geometry libraries (currently [GradientspaceCore](https://github.com/gradientspace/GradientspaceCore) and [GradientspaceIO](https://github.com/gradientspace/GradientspaceIO) ). These Open Source (MIT License) libraries are developed by Gradientspace Corp. The libraries are heavily under development.
+This is a demo/sample project for the Gradientspace C++ geometry libraries (currently [GradientspaceCore](https://github.com/gradientspace/GradientspaceCore), [GradientspaceIO](https://github.com/gradientspace/GradientspaceIO), and [GradientspaceGrid](https://github.com/gradientspace/GradientspaceGrid) ). These Open Source (MIT License) libraries are developed by Gradientspace Corp. 
 
 The dependent libraries are included as git submodules. If your git client does not automatically sync the submodules, try running `git submodule update --init --recursive`. 
 
@@ -30,7 +30,7 @@ Alternately use **CMake** with the preset **Windows x64 vs2022** to generate a s
 
 Use `cmake --preset=linux` to generate a makefile build in the folder `build/cmake-linux`. Run **make** in that directory to build a **GradientspaceDemo** executable.
 
-Note that currently the dependent libraries (gradientspace_core and gradientspace_io) are built as shared libraries in subdirectories `gscore_bin` and `gsio_bin`.
+Note that currently the dependent libraries (gradientspace_core / gradientspace_io / gradientspace_grid) are built as shared libraries in subdirectories `gscore_bin` / `gsio_bin` / `gsgrid_bin`.
 The executable may reference these libraries by absolute path   *(static library build option will be added in future)*
 
 Other CMake generators (eg Ninja) have not been tested.
