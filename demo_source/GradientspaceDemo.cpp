@@ -3,23 +3,59 @@
 
 #include <iostream>
 
+#include "Core/TextIO.h"
 #include "Mesh/DenseMesh.h"
 #include "MeshIO/OBJReader.h"
+#include "MeshIO/OBJWriter.h"
+#include "MeshIO/STLReader.h"
+
+
+#define ENABLE_GRADIENTSPACE_GRID
+#ifdef ENABLE_GRADIENTSPACE_GRID
 #include "ModelGrid/ModelGrid.h"
 #include "ModelGrid/ModelGridCell.h"
 #include "ModelGrid/ModelGridEditor.h"
 #include "ModelGrid/ModelGridEditMachine.h"
 #include "ModelGrid/ModelGridSerializer.h"
+#endif
 
 int main()
 {
     std::cout << "Hello World!\n";
 
+    auto WriteDenseMesh = [](GS::DenseMesh& Mesh, std::string filename)
+    {
+        GS::OBJFormatData WriteOBJData;
+        GS::DenseMeshToOBJFormatData(Mesh, WriteOBJData);
+        auto Writer = GS::FileTextWriter::OpenFile(filename);
+		GS::OBJWriter::WriteOBJ(Writer, WriteOBJData);
+        Writer.CloseFile();
+    };
+
+    GS::DenseMesh TmpMesh;
+
     // read OBJ file into a DenseMesh
-    GS::DenseMesh DenseMesh;
     GS::OBJFormatData OBJData;
     bool bOBJReadOK = GS::OBJReader::ReadOBJ("C:\\scratch\\bunny_open_200.obj", OBJData);
     std::cout << "OBJ Mesh Read ok: " << bOBJReadOK << std::endl;
+
+
+    GS::STLReader::STLMeshData STLAsciiMesh;
+	bool bSTLAsciiReadOK = GS::STLReader::ReadSTL("C:\\scratch\\bunny_ascii.stl", STLAsciiMesh);
+    TmpMesh.Clear();
+    GS::STLReader::STLMeshToDenseMesh(STLAsciiMesh, TmpMesh);
+	WriteDenseMesh(TmpMesh, "C:\\scratch\\bunny_ascii_stl_out.obj");
+    std::cout << "STL Ascii Mesh Read ok: " << bSTLAsciiReadOK << std::endl;
+
+    GS::STLReader::STLMeshData STLBinaryMesh;
+    bool bSTLBinaryReadOK = GS::STLReader::ReadSTL("C:\\scratch\\bunny_binary.stl", STLBinaryMesh);
+    TmpMesh.Clear();
+    GS::STLReader::STLMeshToDenseMesh(STLBinaryMesh, TmpMesh);
+    WriteDenseMesh(TmpMesh, "C:\\scratch\\bunny_binary_stl_out.obj");
+    std::cout << "STL Binary Mesh Read ok: " << bSTLBinaryReadOK << std::endl;
+
+
+#ifdef ENABLE_GRADIENTSPACE_GRID
 
     // create a ModelGrid
     GS::ModelGrid Grid;
@@ -53,6 +89,6 @@ int main()
     Serializer.BeginRead();
     bool bRestoreOK = GS::ModelGridSerializer::Restore(RestoredGrid, Serializer);
     std::cout << "Grid read ok: " << bStoreOK << std::endl;
-
+#endif
 }
 
