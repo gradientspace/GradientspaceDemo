@@ -4,10 +4,12 @@
 #include <iostream>
 
 #include "Core/TextIO.h"
+#include "Core/BinaryIO.h"
 #include "Mesh/DenseMesh.h"
 #include "MeshIO/OBJReader.h"
 #include "MeshIO/OBJWriter.h"
 #include "MeshIO/STLReader.h"
+#include "MeshIO/STLWriter.h"
 
 
 #define ENABLE_GRADIENTSPACE_GRID
@@ -23,37 +25,48 @@ int main()
 {
     std::cout << "Hello World!\n";
 
-    auto WriteDenseMesh = [](GS::DenseMesh& Mesh, std::string filename)
-    {
-        GS::OBJFormatData WriteOBJData;
-        GS::DenseMeshToOBJFormatData(Mesh, WriteOBJData);
-        auto Writer = GS::FileTextWriter::OpenFile(filename);
+	auto WriteDenseMeshOBJ = [](GS::DenseMesh& Mesh, std::string filename)
+	{
+		GS::OBJFormatData WriteOBJData;
+		GS::DenseMeshToOBJFormatData(Mesh, WriteOBJData);
+		auto Writer = GS::FileTextWriter::OpenFile(filename);
 		GS::OBJWriter::WriteOBJ(Writer, WriteOBJData);
-        Writer.CloseFile();
-    };
+		Writer.CloseFile();
+	};
 
     GS::DenseMesh TmpMesh;
 
+    std::string testFilesPath = "c:\\scratch\\";
+    std::string writeFilesPath = "c:\\scratch\\";
+
     // read OBJ file into a DenseMesh
     GS::OBJFormatData OBJData;
-    bool bOBJReadOK = GS::OBJReader::ReadOBJ("C:\\scratch\\bunny_open_200.obj", OBJData);
+    bool bOBJReadOK = GS::OBJReader::ReadOBJ(testFilesPath+"bunny_open_200.obj", OBJData);
     std::cout << "OBJ Mesh Read ok: " << bOBJReadOK << std::endl;
 
-
     GS::STLReader::STLMeshData STLAsciiMesh;
-	bool bSTLAsciiReadOK = GS::STLReader::ReadSTL("C:\\scratch\\bunny_ascii.stl", STLAsciiMesh);
+	bool bSTLAsciiReadOK = GS::STLReader::ReadSTL(testFilesPath + "bunny_ascii.stl", STLAsciiMesh);
     TmpMesh.Clear();
     GS::STLReader::STLMeshToDenseMesh(STLAsciiMesh, TmpMesh);
-	WriteDenseMesh(TmpMesh, "C:\\scratch\\bunny_ascii_stl_out.obj");
+    WriteDenseMeshOBJ(TmpMesh, writeFilesPath+"bunny_ascii_stl_out.obj");
     std::cout << "STL Ascii Mesh Read ok: " << bSTLAsciiReadOK << std::endl;
+    bool bSTLAsciiWriteOK = GS::STLWriter::WriteSTL(writeFilesPath + "bunny_ascii_stl_out.stl", TmpMesh, "bunny_ascii", false);
+    std::cout << "STL Ascii Mesh Write ok: " << bSTLAsciiWriteOK << std::endl;
+    GS::STLReader::STLMeshData STLAsciiReadbackMesh;
+    bool bSTLAsciiReadbackOK = GS::STLReader::ReadSTL(writeFilesPath + "bunny_ascii_stl_out.stl", STLAsciiReadbackMesh);
+	std::cout << "STL Ascii Mesh Readback ok: " << bSTLAsciiReadbackOK << std::endl;
 
     GS::STLReader::STLMeshData STLBinaryMesh;
-    bool bSTLBinaryReadOK = GS::STLReader::ReadSTL("C:\\scratch\\bunny_binary.stl", STLBinaryMesh);
+    bool bSTLBinaryReadOK = GS::STLReader::ReadSTL(testFilesPath + "bunny_binary.stl", STLBinaryMesh);
     TmpMesh.Clear();
     GS::STLReader::STLMeshToDenseMesh(STLBinaryMesh, TmpMesh);
-    WriteDenseMesh(TmpMesh, "C:\\scratch\\bunny_binary_stl_out.obj");
+    WriteDenseMeshOBJ(TmpMesh, writeFilesPath+"bunny_binary_stl_out.obj");
     std::cout << "STL Binary Mesh Read ok: " << bSTLBinaryReadOK << std::endl;
-
+    bool bSTLBinaryWriteOK = GS::STLWriter::WriteSTL(writeFilesPath + "bunny_binary_stl_out.stl", TmpMesh, "bunny_ascii", true);
+    std::cout << "STL Binary Mesh Write ok: " << bSTLBinaryWriteOK << std::endl;
+    GS::STLReader::STLMeshData STLBinaryReadbackMesh;
+    bool bSTLBinaryReadbackOK = GS::STLReader::ReadSTL(writeFilesPath + "bunny_binary_stl_out.stl", STLBinaryReadbackMesh);
+    std::cout << "STL Ascii Mesh Readback ok: " << bSTLBinaryReadbackOK << std::endl;
 
 #ifdef ENABLE_GRADIENTSPACE_GRID
 
