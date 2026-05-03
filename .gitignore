@@ -8,7 +8,7 @@
 ![Bb]uild/vs2022
 
 # demo output directory
-output/
+test_output/
 
 # symlink to built executable
 gradientspace_demo

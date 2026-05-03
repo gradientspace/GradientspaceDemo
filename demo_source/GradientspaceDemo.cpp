@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <filesystem>
+#include <chrono>
 
 #include "Core/TextIO.h"
 #include "Core/BinaryIO.h"
@@ -11,6 +12,10 @@
 #include "MeshIO/OBJWriter.h"
 #include "MeshIO/STLReader.h"
 #include "MeshIO/STLWriter.h"
+#include "MeshIO/GLTFReader.h"
+#include "MeshIO/GLTFWriter.h"
+#include "MeshIO/GLBReader.h"
+#include "MeshIO/GLBWriter.h"
 
 
 #define ENABLE_GRADIENTSPACE_GRID
@@ -22,58 +27,302 @@
 #include "ModelGrid/ModelGridSerializer.h"
 #endif
 
-int main()
+static void WriteDenseMeshOBJ(GS::DenseMesh& Mesh, const std::string& filename)
 {
-    std::cout << "Hello World!\n";
-
-	auto WriteDenseMeshOBJ = [](GS::DenseMesh& Mesh, std::string filename)
-	{
-		GS::OBJFormatData WriteOBJData;
-		GS::DenseMeshToOBJFormatData(Mesh, WriteOBJData);
-		auto Writer = GS::FileTextWriter::OpenFile(filename);
-		GS::OBJWriter::WriteOBJ(Writer, WriteOBJData);
-		Writer.CloseFile();
+	using clock = std::chrono::steady_clock;
+	auto ms_since = [](clock::time_point t0) {
+		return std::chrono::duration<double, std::milli>(clock::now() - t0).count();
 	};
 
-    GS::DenseMesh TmpMesh;
+	std::cout << "  WriteDenseMeshOBJ: " << filename
+		<< "  (verts=" << Mesh.GetVertexCount()
+		<< ", tris=" << Mesh.GetTriangleCount() << ")" << std::endl;
 
-    std::filesystem::path outputDir = std::filesystem::current_path() / "output";
-    std::filesystem::create_directories(outputDir);
+	auto t0 = clock::now();
+	GS::OBJFormatData WriteOBJData;
+	GS::DenseMeshToOBJFormatData(Mesh, WriteOBJData);
+	double convertMs = ms_since(t0);
 
-    std::string testFilesPath = "test_files" + std::string(1, std::filesystem::path::preferred_separator);
-    std::string writeFilesPath = outputDir.string() + std::string(1, std::filesystem::path::preferred_separator);
+	auto t1 = clock::now();
+	auto Writer = GS::FileTextWriter::OpenFile(filename);
+	GS::OBJWriter::WriteOBJ(Writer, WriteOBJData);
+	Writer.CloseFile();
+	double writeMs = ms_since(t1);
 
-    // read OBJ file into a DenseMesh
+	std::cout << "    convert=" << convertMs << " ms"
+		<< ", write=" << writeMs << " ms"
+		<< ", total=" << (convertMs + writeMs) << " ms" << std::endl;
+}
+
+// Read a .gltf at <SourceDir>/<GLTFFilename>, run mesh-level and data-level
+// read/write tests, and dump the outputs into a fresh subfolder of OutputBaseDir
+// named "<stem>_gltf" (e.g. "DamagedHelmet_gltf"). Any pre-existing subfolder
+// of that name is deleted first.
+static void TestGLTFReadWrite(
+    const std::filesystem::path& SourceDir,
+    const std::string& GLTFFilename,
+    const std::filesystem::path& OutputBaseDir)
+{
+    namespace fs = std::filesystem;
+
+    fs::path SourcePath = SourceDir / GLTFFilename;
+    std::string Stem = fs::path(GLTFFilename).stem().string();
+
+    if (!fs::exists(SourcePath))
+    {
+        std::cout << "=== TestGLTFReadWrite: SKIPPED, source file not found: "
+            << SourcePath.string() << std::endl;
+        return;
+    }
+
+    fs::path OutDir = OutputBaseDir / (Stem + "_gltf");
+    if (fs::exists(OutDir))
+        fs::remove_all(OutDir);
+    fs::create_directories(OutDir);
+
+    std::string OutPrefix = OutDir.string() + std::string(1, fs::path::preferred_separator);
+    std::string SourceStr = SourcePath.string();
+
+    std::cout << "=== TestGLTFReadWrite: " << SourceStr << " ===" << std::endl;
+
+    // mesh-level round-trip: collapse scene to a single DenseMesh
+    {
+        GS::DenseMesh GLTFMesh;
+        bool bGLTFReadOK = GS::GLTFReader::ReadGLTFToDenseMesh(SourceStr, GLTFMesh);
+        std::cout << "GLTF Mesh Read ok: " << bGLTFReadOK
+            << "  (verts=" << GLTFMesh.GetVertexCount()
+            << ", tris=" << GLTFMesh.GetTriangleCount() << ")" << std::endl;
+
+        WriteDenseMeshOBJ(GLTFMesh, OutPrefix + Stem + "_mesh.obj");
+
+        bool bGLTFWriteOK = GS::GLTFWriter::WriteGLTF(OutPrefix + Stem + "_mesh.gltf", GLTFMesh);
+        std::cout << "GLTF Mesh Write ok: " << bGLTFWriteOK << std::endl;
+
+        GS::DenseMesh GLTFRoundtripMesh;
+        bool bGLTFReadbackOK = GS::GLTFReader::ReadGLTFToDenseMesh(OutPrefix + Stem + "_mesh.gltf", GLTFRoundtripMesh);
+        std::cout << "GLTF Mesh Readback ok: " << bGLTFReadbackOK
+            << "  (verts=" << GLTFRoundtripMesh.GetVertexCount()
+            << ", tris=" << GLTFRoundtripMesh.GetTriangleCount() << ")" << std::endl;
+    }
+
+    // data-level round-trip: preserve full GLTFData (materials, textures, scene)
+    {
+        GS::GLTFFormatData::Root GLTFRoot;
+        std::vector<std::vector<uint8_t>> GLTFBuffers;
+        bool bGLTFDataReadOK = GS::GLTFReader::ReadGLTF(SourceStr, GLTFRoot, GLTFBuffers);
+        std::cout << "GLTF Data Read ok: " << bGLTFDataReadOK
+            << "  (meshes=" << GLTFRoot.meshes.size()
+            << ", materials=" << GLTFRoot.materials.size()
+            << ", textures=" << GLTFRoot.textures.size()
+            << ", images=" << GLTFRoot.images.size() << ")" << std::endl;
+
+        // Copy externally-referenced texture image files alongside the output
+        // .gltf so they resolve when opened in a viewer. Subdirectories in the
+        // URI are preserved; bufferView-embedded and data: URIs are skipped.
+        for (const auto& Image : GLTFRoot.images)
+        {
+            if (!Image.uri.has_value())
+                continue;
+            const std::string& UriStr = *Image.uri;
+            if (UriStr.rfind("data:", 0) == 0)
+                continue;
+            fs::path SrcImg = SourceDir / UriStr;
+            fs::path DstImg = OutDir / UriStr;
+            std::error_code EC;
+            fs::create_directories(DstImg.parent_path(), EC);
+            fs::copy_file(SrcImg, DstImg, fs::copy_options::overwrite_existing, EC);
+            if (EC)
+                std::cout << "  WARNING: failed to copy texture '" << UriStr << "': " << EC.message() << std::endl;
+            else
+                std::cout << "  Copied texture: " << UriStr << std::endl;
+        }
+
+        bool bGLTFDataWriteOK = GS::GLTFWriter::WriteGLTF(OutPrefix + Stem + ".gltf", GLTFRoot, GLTFBuffers[0]);
+        std::cout << "GLTF Data Write ok: " << bGLTFDataWriteOK << std::endl;
+    }
+}
+
+// Read a .glb at <SourceDir>/<GLBFilename>, run mesh-level and data-level
+// read/write tests, and dump the outputs into a fresh subfolder of OutputBaseDir
+// named "<stem>_glb" (e.g. "DamagedHelmet_glb"). Any pre-existing subfolder
+// of that name is deleted first.
+static void TestGLBReadWrite(
+    const std::filesystem::path& SourceDir,
+    const std::string& GLBFilename,
+    const std::filesystem::path& OutputBaseDir)
+{
+    namespace fs = std::filesystem;
+
+    fs::path SourcePath = SourceDir / GLBFilename;
+    std::string Stem = fs::path(GLBFilename).stem().string();
+
+    if (!fs::exists(SourcePath))
+    {
+        std::cout << "=== TestGLBReadWrite: SKIPPED, source file not found: "
+            << SourcePath.string() << std::endl;
+        return;
+    }
+
+    fs::path OutDir = OutputBaseDir / (Stem + "_glb");
+    if (fs::exists(OutDir))
+        fs::remove_all(OutDir);
+    fs::create_directories(OutDir);
+
+    std::string OutPrefix = OutDir.string() + std::string(1, fs::path::preferred_separator);
+    std::string SourceStr = SourcePath.string();
+
+    std::cout << "=== TestGLBReadWrite: " << SourceStr << " ===" << std::endl;
+
+    // mesh-level round-trip: collapse scene to a single DenseMesh
+    {
+        GS::DenseMesh GLBMesh;
+        bool bGLBReadOK = GS::GLBReader::ReadGLBToDenseMesh(SourceStr, GLBMesh);
+        std::cout << "GLB Mesh Read ok: " << bGLBReadOK
+            << "  (verts=" << GLBMesh.GetVertexCount()
+            << ", tris=" << GLBMesh.GetTriangleCount() << ")" << std::endl;
+
+        WriteDenseMeshOBJ(GLBMesh, OutPrefix + Stem + "_mesh.obj");
+
+        bool bGLBWriteOK = GS::GLBWriter::WriteGLB(OutPrefix + Stem + "_mesh.glb", GLBMesh);
+        std::cout << "GLB Mesh Write ok: " << bGLBWriteOK << std::endl;
+
+        GS::DenseMesh GLBRoundtripMesh;
+        bool bGLBReadbackOK = GS::GLBReader::ReadGLBToDenseMesh(OutPrefix + Stem + "_mesh.glb", GLBRoundtripMesh);
+        std::cout << "GLB Mesh Readback ok: " << bGLBReadbackOK
+            << "  (verts=" << GLBRoundtripMesh.GetVertexCount()
+            << ", tris=" << GLBRoundtripMesh.GetTriangleCount() << ")" << std::endl;
+    }
+
+    // data-level round-trip: preserve full GLTFData (materials, textures, scene)
+    {
+        GS::GLTFFormatData::Root GLBRoot;
+        std::vector<std::vector<uint8_t>> GLBBuffers;
+        bool bGLBDataReadOK = GS::GLBReader::ReadGLB(SourceStr, GLBRoot, GLBBuffers);
+        std::cout << "GLB Data Read ok: " << bGLBDataReadOK
+            << "  (meshes=" << GLBRoot.meshes.size()
+            << ", materials=" << GLBRoot.materials.size()
+            << ", textures=" << GLBRoot.textures.size()
+            << ", images=" << GLBRoot.images.size() << ")" << std::endl;
+
+        bool bGLBDataWriteOK = GS::GLBWriter::WriteGLB(OutPrefix + Stem + ".glb", GLBRoot,
+            GLBBuffers.empty() ? std::vector<uint8_t>() : GLBBuffers[0]);
+        std::cout << "GLB Data Write ok: " << bGLBDataWriteOK << std::endl;
+    }
+}
+
+// Read an OBJ at <SourceDir>/<OBJFilename>, write it back out, and read the
+// result. Outputs land in a fresh subfolder of OutputBaseDir named
+// "<stem>_obj" (e.g. "bunny_obj"). Any pre-existing subfolder is deleted first.
+static void TestOBJReadWrite(
+    const std::filesystem::path& SourceDir,
+    const std::string& OBJFilename,
+    const std::filesystem::path& OutputBaseDir)
+{
+    namespace fs = std::filesystem;
+
+    fs::path SourcePath = SourceDir / OBJFilename;
+    std::string Stem = fs::path(OBJFilename).stem().string();
+
+    if (!fs::exists(SourcePath))
+    {
+        std::cout << "=== TestOBJReadWrite: SKIPPED, source file not found: "
+            << SourcePath.string() << std::endl;
+        return;
+    }
+
+    fs::path OutDir = OutputBaseDir / (Stem + "_obj");
+    if (fs::exists(OutDir))
+        fs::remove_all(OutDir);
+    fs::create_directories(OutDir);
+
+    std::string OutPrefix = OutDir.string() + std::string(1, fs::path::preferred_separator);
+    std::string SourceStr = SourcePath.string();
+
+    std::cout << "=== TestOBJReadWrite: " << SourceStr << " ===" << std::endl;
+
     GS::OBJFormatData OBJData;
-    bool bOBJReadOK = GS::OBJReader::ReadOBJ(testFilesPath+"bunny_open_200.obj", OBJData);
-    std::cout << "OBJ Mesh Read ok: " << bOBJReadOK << std::endl;
+    bool bOBJReadOK = GS::OBJReader::ReadOBJ(SourceStr, OBJData);
+    std::cout << "OBJ Read ok: " << bOBJReadOK << std::endl;
 
-    GS::STLReader::STLMeshData STLAsciiMesh;
-	bool bSTLAsciiReadOK = GS::STLReader::ReadSTL(testFilesPath + "bunny_ascii.stl", STLAsciiMesh);
-    TmpMesh.Clear();
-    GS::STLReader::STLMeshToDenseMesh(STLAsciiMesh, TmpMesh);
-    WriteDenseMeshOBJ(TmpMesh, writeFilesPath+"bunny_ascii_stl_out.obj");
-    std::cout << "STL Ascii Mesh Read ok: " << bSTLAsciiReadOK << std::endl;
-    bool bSTLAsciiWriteOK = GS::STLWriter::WriteSTL(writeFilesPath + "bunny_ascii_stl_out.stl", TmpMesh, "bunny_ascii", false);
-    std::cout << "STL Ascii Mesh Write ok: " << bSTLAsciiWriteOK << std::endl;
-    GS::STLReader::STLMeshData STLAsciiReadbackMesh;
-    bool bSTLAsciiReadbackOK = GS::STLReader::ReadSTL(writeFilesPath + "bunny_ascii_stl_out.stl", STLAsciiReadbackMesh);
-	std::cout << "STL Ascii Mesh Readback ok: " << bSTLAsciiReadbackOK << std::endl;
+    std::string OutPath = OutPrefix + Stem + ".obj";
+    {
+        auto Writer = GS::FileTextWriter::OpenFile(OutPath);
+        bool bOBJWriteOK = GS::OBJWriter::WriteOBJ(Writer, OBJData);
+        Writer.CloseFile();
+        std::cout << "OBJ Write ok: " << bOBJWriteOK << std::endl;
+    }
 
-    GS::STLReader::STLMeshData STLBinaryMesh;
-    bool bSTLBinaryReadOK = GS::STLReader::ReadSTL(testFilesPath + "bunny_binary.stl", STLBinaryMesh);
-    TmpMesh.Clear();
-    GS::STLReader::STLMeshToDenseMesh(STLBinaryMesh, TmpMesh);
-    WriteDenseMeshOBJ(TmpMesh, writeFilesPath+"bunny_binary_stl_out.obj");
-    std::cout << "STL Binary Mesh Read ok: " << bSTLBinaryReadOK << std::endl;
-    bool bSTLBinaryWriteOK = GS::STLWriter::WriteSTL(writeFilesPath + "bunny_binary_stl_out.stl", TmpMesh, "bunny_ascii", true);
-    std::cout << "STL Binary Mesh Write ok: " << bSTLBinaryWriteOK << std::endl;
-    GS::STLReader::STLMeshData STLBinaryReadbackMesh;
-    bool bSTLBinaryReadbackOK = GS::STLReader::ReadSTL(writeFilesPath + "bunny_binary_stl_out.stl", STLBinaryReadbackMesh);
-    std::cout << "STL Ascii Mesh Readback ok: " << bSTLBinaryReadbackOK << std::endl;
+    GS::OBJFormatData OBJReadback;
+    bool bOBJReadbackOK = GS::OBJReader::ReadOBJ(OutPath, OBJReadback);
+    std::cout << "OBJ Readback ok: " << bOBJReadbackOK << std::endl;
+}
+
+// Read a mesh file at <SourceDir>/<MeshFilename> (currently OBJ), write it
+// back out as both ASCII and Binary STL, and read each result. Outputs land
+// in a fresh subfolder of OutputBaseDir named "<stem>_stl" (e.g. "bunny_stl");
+// any pre-existing subfolder is deleted first.
+static void TestSTLReadWrite(
+    const std::filesystem::path& SourceDir,
+    const std::string& MeshFilename,
+    const std::filesystem::path& OutputBaseDir)
+{
+    namespace fs = std::filesystem;
+
+    fs::path SourcePath = SourceDir / MeshFilename;
+    std::string Stem = fs::path(MeshFilename).stem().string();
+
+    if (!fs::exists(SourcePath))
+    {
+        std::cout << "=== TestSTLReadWrite: SKIPPED, source file not found: "
+            << SourcePath.string() << std::endl;
+        return;
+    }
+
+    fs::path OutDir = OutputBaseDir / (Stem + "_stl");
+    if (fs::exists(OutDir))
+        fs::remove_all(OutDir);
+    fs::create_directories(OutDir);
+
+    std::string OutPrefix = OutDir.string() + std::string(1, fs::path::preferred_separator);
+    std::string SourceStr = SourcePath.string();
+
+    std::cout << "=== TestSTLReadWrite: " << SourceStr << " ===" << std::endl;
+
+    GS::OBJFormatData SourceOBJ;
+    bool bSourceReadOK = GS::OBJReader::ReadOBJ(SourceStr, SourceOBJ);
+    std::cout << "STL Source Read ok: " << bSourceReadOK << std::endl;
+
+    GS::DenseMesh SourceMesh;
+    GS::OBJFormatDataToDenseMesh(SourceOBJ, SourceMesh);
+
+    // ASCII STL
+    {
+        std::string AsciiPath = OutPrefix + Stem + "_ascii.stl";
+        bool bWriteOK = GS::STLWriter::WriteSTL(AsciiPath, SourceMesh, Stem, /*bWriteBinary*/ false);
+        std::cout << "STL Ascii Write ok: " << bWriteOK << std::endl;
+
+        GS::STLReader::STLMeshData ReadbackData;
+        bool bReadbackOK = GS::STLReader::ReadSTL(AsciiPath, ReadbackData);
+        std::cout << "STL Ascii Readback ok: " << bReadbackOK
+            << "  (tris=" << ReadbackData.Triangles.size() << ")" << std::endl;
+    }
+
+    // Binary STL
+    {
+        std::string BinaryPath = OutPrefix + Stem + "_binary.stl";
+        bool bWriteOK = GS::STLWriter::WriteSTL(BinaryPath, SourceMesh, Stem, /*bWriteBinary*/ true);
+        std::cout << "STL Binary Write ok: " << bWriteOK << std::endl;
+
+        GS::STLReader::STLMeshData ReadbackData;
+        bool bReadbackOK = GS::STLReader::ReadSTL(BinaryPath, ReadbackData);
+        std::cout << "STL Binary Readback ok: " << bReadbackOK
+            << "  (tris=" << ReadbackData.Triangles.size() << ")" << std::endl;
+    }
+}
 
 #ifdef ENABLE_GRADIENTSPACE_GRID
-
+static void TestModelGrid()
+{
     // create a ModelGrid
     GS::ModelGrid Grid;
     Grid.Initialize(GS::Vector3d::One());
@@ -106,6 +355,49 @@ int main()
     Serializer.BeginRead();
     bool bRestoreOK = GS::ModelGridSerializer::Restore(RestoredGrid, Serializer);
     std::cout << "Grid read ok: " << bStoreOK << std::endl;
+}
+#endif
+
+int main()
+{
+    namespace fs = std::filesystem;
+
+    fs::path outputDir = fs::current_path() / "test_output";
+    fs::create_directories(outputDir);
+
+    fs::path testFilesDir("test_files");
+
+    struct GLTFTestCase { const char* SubDir; const char* Filename; };
+
+    const GLTFTestCase GLTFCases[] = {
+        { "Box/glTF",               "Box.gltf" },
+        { "CesiumMilkTruck/glTF",   "CesiumMilkTruck.gltf" },
+        { "ChronographWatch/glTF",  "ChronographWatch.gltf" },
+        { "DamagedHelmet/glTF",     "DamagedHelmet.gltf" },
+        { "Lantern/glTF",           "Lantern.gltf" },
+        { "SciFiHelmet/glTF",       "SciFiHelmet.gltf" },
+    };
+
+    const GLTFTestCase GLBCases[] = {
+        { "2CylinderEngine/glTF-Binary",  "2CylinderEngine.glb" },
+        { "Box/glTF-Binary",              "Box.glb" },
+        { "CesiumMilkTruck/glTF-Binary",  "CesiumMilkTruck.glb" },
+        { "ChronographWatch/glTF-Binary", "ChronographWatch.glb" },
+        { "DamagedHelmet/glTF-Binary",    "DamagedHelmet.glb" },
+        { "Lantern/glTF-Binary",          "Lantern.glb" },
+    };
+
+    for (const GLTFTestCase& Case : GLTFCases)
+        TestGLTFReadWrite(testFilesDir / Case.SubDir, Case.Filename, outputDir);
+
+    for (const GLTFTestCase& Case : GLBCases)
+        TestGLBReadWrite(testFilesDir / Case.SubDir, Case.Filename, outputDir);
+
+    TestOBJReadWrite(testFilesDir, "bunny.obj", outputDir);
+    TestSTLReadWrite(testFilesDir, "bunny.obj", outputDir);
+
+#ifdef ENABLE_GRADIENTSPACE_GRID
+    TestModelGrid();
 #endif
 }
 
