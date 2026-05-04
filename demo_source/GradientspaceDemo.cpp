@@ -3,10 +3,13 @@
 
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 #include <chrono>
 
 #include "Core/TextIO.h"
 #include "Core/BinaryIO.h"
+#include "Core/gs_debug.h"
+#include "Image/GSImage.h"
 #include "Mesh/DenseMesh.h"
 #include "MeshIO/OBJReader.h"
 #include "MeshIO/OBJWriter.h"
@@ -16,6 +19,8 @@
 #include "MeshIO/GLTFWriter.h"
 #include "MeshIO/GLBReader.h"
 #include "MeshIO/GLBWriter.h"
+#include "ImageIO/ImageReader.h"
+#include "ImageIO/ImageWriter.h"
 
 
 #define ENABLE_GRADIENTSPACE_GRID
@@ -122,9 +127,12 @@ static void TestGLTFReadWrite(
             << ", textures=" << GLTFRoot.textures.size()
             << ", images=" << GLTFRoot.images.size() << ")" << std::endl;
 
-        // Copy externally-referenced texture image files alongside the output
-        // .gltf so they resolve when opened in a viewer. Subdirectories in the
-        // URI are preserved; bufferView-embedded and data: URIs are skipped.
+        // Round-trip externally-referenced textures through GS::ReadImage +
+        // GS::WriteImage and emit the re-encoded bytes alongside the output
+        // .gltf so they resolve when opened in a viewer (and so the round-trip
+        // result is visually inspectable). Output format matches the detected
+        // source format (PNG-as-PNG, JPEG-as-JPEG). Subdirectories in the URI
+        // are preserved; bufferView-embedded and data: URIs are skipped.
         for (const auto& Image : GLTFRoot.images)
         {
             if (!Image.uri.has_value())
@@ -136,11 +144,62 @@ static void TestGLTFReadWrite(
             fs::path DstImg = OutDir / UriStr;
             std::error_code EC;
             fs::create_directories(DstImg.parent_path(), EC);
-            fs::copy_file(SrcImg, DstImg, fs::copy_options::overwrite_existing, EC);
-            if (EC)
-                std::cout << "  WARNING: failed to copy texture '" << UriStr << "': " << EC.message() << std::endl;
-            else
-                std::cout << "  Copied texture: " << UriStr << std::endl;
+
+            std::ifstream ImgIn(SrcImg, std::ios::binary | std::ios::ate);
+            if (!ImgIn.is_open())
+            {
+                std::cout << "  WARNING: failed to open source texture: " << SrcImg.string() << std::endl;
+                continue;
+            }
+            std::streamsize ImgSize = ImgIn.tellg();
+            ImgIn.seekg(0, std::ios::beg);
+            std::vector<uint8_t> ImgBytes((size_t)ImgSize);
+            if (ImgSize > 0)
+                ImgIn.read(reinterpret_cast<char*>(ImgBytes.data()), ImgSize);
+
+            GS::Image4b DecodedImage;
+            GS::EReadImageFormat DetectedFormat = GS::EReadImageFormat::Unknown;
+            GS::EReadImageResult ReadResult = GS::ReadImage(
+                GS::const_buffer_view<uint8_t>(ImgBytes.data(), ImgBytes.size()),
+                DecodedImage, DetectedFormat);
+            if (ReadResult != GS::EReadImageResult::Ok)
+            {
+                std::cout << "  WARNING: ReadImage failed for '" << UriStr
+                    << "' result=" << (int)ReadResult << std::endl;
+                continue;
+            }
+
+            GS::EWriteImageFormat WriteFormat =
+                (DetectedFormat == GS::EReadImageFormat::PNG)  ? GS::EWriteImageFormat::PNG  :
+                (DetectedFormat == GS::EReadImageFormat::JPEG) ? GS::EWriteImageFormat::JPEG :
+                                                                 GS::EWriteImageFormat::Unknown;
+            std::vector<uint8_t> EncodedBytes;
+            GS::EWriteImageResult WriteResult = GS::WriteImage(
+                DecodedImage, EncodedBytes, WriteFormat);
+            if (WriteResult != GS::EWriteImageResult::Ok)
+            {
+                std::cout << "  WARNING: WriteImage failed for '" << UriStr
+                    << "' result=" << (int)WriteResult << std::endl;
+                continue;
+            }
+
+            std::ofstream ImgOut(DstImg, std::ios::binary | std::ios::trunc);
+            if (!ImgOut.is_open())
+            {
+                std::cout << "  WARNING: failed to open dest texture: " << DstImg.string() << std::endl;
+                continue;
+            }
+            ImgOut.write(reinterpret_cast<const char*>(EncodedBytes.data()),
+                (std::streamsize)EncodedBytes.size());
+
+            const char* FormatStr =
+                (DetectedFormat == GS::EReadImageFormat::PNG)  ? "PNG"  :
+                (DetectedFormat == GS::EReadImageFormat::JPEG) ? "JPEG" : "Unknown";
+            std::cout << "  Round-tripped texture '" << UriStr << "': "
+                << FormatStr
+                << " " << DecodedImage.Width() << "x" << DecodedImage.Height()
+                << "  src=" << ImgSize << "B"
+                << "  dst=" << EncodedBytes.size() << "B" << std::endl;
         }
 
         bool bGLTFDataWriteOK = GS::GLTFWriter::WriteGLTF(OutPrefix + Stem + ".gltf", GLTFRoot, GLTFBuffers[0]);
