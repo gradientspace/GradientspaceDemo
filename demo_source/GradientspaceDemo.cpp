@@ -56,12 +56,18 @@ static void WriteDenseMeshOBJ(GS::DenseMesh& Mesh, const std::string& filename)
 
 // Read a .gltf at <SourceDir>/<GLTFFilename>, run mesh-level and data-level
 // read/write tests, and dump the outputs into a fresh subfolder of OutputBaseDir
-// named "<stem>_gltf" (e.g. "DamagedHelmet_gltf"). Any pre-existing subfolder
+// named "gltf_<stem>" (e.g. "gltf_DamagedHelmet"). Any pre-existing subfolder
 // of that name is deleted first.
+//
+// If bHasEmbedded is true, also runs a glTF-Embedded round-trip on
+// <SourceDir>-Embedded/<GLTFFilename> (single self-contained .gltf with
+// base64-inlined buffer) and writes it as "<stem>.embed.gltf" in the same
+// output folder.
 static void TestGLTFReadWrite(
     const std::filesystem::path& SourceDir,
     const std::string& GLTFFilename,
-    const std::filesystem::path& OutputBaseDir)
+    const std::filesystem::path& OutputBaseDir,
+    bool bHasEmbedded)
 {
     namespace fs = std::filesystem;
 
@@ -75,7 +81,7 @@ static void TestGLTFReadWrite(
         return;
     }
 
-    fs::path OutDir = OutputBaseDir / (Stem + "_gltf");
+    fs::path OutDir = OutputBaseDir / ("gltf_" + Stem);
     if (fs::exists(OutDir))
         fs::remove_all(OutDir);
     fs::create_directories(OutDir);
@@ -140,11 +146,51 @@ static void TestGLTFReadWrite(
         bool bGLTFDataWriteOK = GS::GLTFWriter::WriteGLTF(OutPrefix + Stem + ".gltf", GLTFRoot, GLTFBuffers[0]);
         std::cout << "GLTF Data Write ok: " << bGLTFDataWriteOK << std::endl;
     }
+
+    // glTF-Embedded round-trip: single self-contained .gltf with the buffer
+    // payload inlined into buffers[0].uri as a base64 data: URI. Image URIs are
+    // passed through unchanged. Source dir is <SourceDir>-Embedded.
+    if (bHasEmbedded)
+    {
+        fs::path EmbeddedSourcePath = fs::path(SourceDir.string() + "-Embedded") / GLTFFilename;
+        if (!fs::exists(EmbeddedSourcePath))
+        {
+            std::cout << "  GLTF Embedded: SKIPPED, source file not found: "
+                << EmbeddedSourcePath.string() << std::endl;
+            return;
+        }
+        std::string EmbeddedSourceStr = EmbeddedSourcePath.string();
+
+        GS::GLTFFormatData::Root GLTFRoot;
+        std::vector<std::vector<uint8_t>> GLTFBuffers;
+        bool bGLTFDataReadOK = GS::GLTFReader::ReadGLTF(EmbeddedSourceStr, GLTFRoot, GLTFBuffers);
+        std::cout << "GLTF Embedded Data Read ok: " << bGLTFDataReadOK
+            << "  (meshes=" << GLTFRoot.meshes.size()
+            << ", materials=" << GLTFRoot.materials.size()
+            << ", textures=" << GLTFRoot.textures.size()
+            << ", images=" << GLTFRoot.images.size()
+            << ", buffer0 bytes=" << (GLTFBuffers.empty() ? 0 : (int)GLTFBuffers[0].size())
+            << ")" << std::endl;
+
+        std::string OutPath = OutPrefix + Stem + ".embed.gltf";
+        bool bGLTFDataWriteOK = GS::GLTFWriter::WriteGLTF(
+            OutPath, GLTFRoot,
+            GLTFBuffers.empty() ? std::vector<uint8_t>() : GLTFBuffers[0],
+            GS::GLTFWriter::BufferLayout::Embedded);
+        std::cout << "GLTF Embedded Data Write ok: " << bGLTFDataWriteOK << std::endl;
+
+        GS::GLTFFormatData::Root ReadbackRoot;
+        std::vector<std::vector<uint8_t>> ReadbackBuffers;
+        bool bReadbackOK = GS::GLTFReader::ReadGLTF(OutPath, ReadbackRoot, ReadbackBuffers);
+        std::cout << "GLTF Embedded Data Readback ok: " << bReadbackOK
+            << "  (buffer0 bytes=" << (ReadbackBuffers.empty() ? 0 : (int)ReadbackBuffers[0].size())
+            << ")" << std::endl;
+    }
 }
 
 // Read a .glb at <SourceDir>/<GLBFilename>, run mesh-level and data-level
 // read/write tests, and dump the outputs into a fresh subfolder of OutputBaseDir
-// named "<stem>_glb" (e.g. "DamagedHelmet_glb"). Any pre-existing subfolder
+// named "glb_<stem>" (e.g. "glb_DamagedHelmet"). Any pre-existing subfolder
 // of that name is deleted first.
 static void TestGLBReadWrite(
     const std::filesystem::path& SourceDir,
@@ -163,7 +209,7 @@ static void TestGLBReadWrite(
         return;
     }
 
-    fs::path OutDir = OutputBaseDir / (Stem + "_glb");
+    fs::path OutDir = OutputBaseDir / ("glb_" + Stem);
     if (fs::exists(OutDir))
         fs::remove_all(OutDir);
     fs::create_directories(OutDir);
@@ -212,7 +258,7 @@ static void TestGLBReadWrite(
 
 // Read an OBJ at <SourceDir>/<OBJFilename>, write it back out, and read the
 // result. Outputs land in a fresh subfolder of OutputBaseDir named
-// "<stem>_obj" (e.g. "bunny_obj"). Any pre-existing subfolder is deleted first.
+// "obj_<stem>" (e.g. "obj_bunny"). Any pre-existing subfolder is deleted first.
 static void TestOBJReadWrite(
     const std::filesystem::path& SourceDir,
     const std::string& OBJFilename,
@@ -230,7 +276,7 @@ static void TestOBJReadWrite(
         return;
     }
 
-    fs::path OutDir = OutputBaseDir / (Stem + "_obj");
+    fs::path OutDir = OutputBaseDir / ("obj_" + Stem);
     if (fs::exists(OutDir))
         fs::remove_all(OutDir);
     fs::create_directories(OutDir);
@@ -259,7 +305,7 @@ static void TestOBJReadWrite(
 
 // Read a mesh file at <SourceDir>/<MeshFilename> (currently OBJ), write it
 // back out as both ASCII and Binary STL, and read each result. Outputs land
-// in a fresh subfolder of OutputBaseDir named "<stem>_stl" (e.g. "bunny_stl");
+// in a fresh subfolder of OutputBaseDir named "stl_<stem>" (e.g. "stl_bunny");
 // any pre-existing subfolder is deleted first.
 static void TestSTLReadWrite(
     const std::filesystem::path& SourceDir,
@@ -278,7 +324,7 @@ static void TestSTLReadWrite(
         return;
     }
 
-    fs::path OutDir = OutputBaseDir / (Stem + "_stl");
+    fs::path OutDir = OutputBaseDir / ("stl_" + Stem);
     if (fs::exists(OutDir))
         fs::remove_all(OutDir);
     fs::create_directories(OutDir);
@@ -367,18 +413,22 @@ int main()
 
     fs::path testFilesDir("test_files");
 
-    struct GLTFTestCase { const char* SubDir; const char* Filename; };
+    struct GLTFTestCase { const char* SubDir; const char* Filename; bool bHasEmbedded; };
+    struct GLBTestCase { const char* SubDir; const char* Filename; };
 
+    // bHasEmbedded: there is an upstream glTF-Embedded sibling at
+    // <SubDir>-Embedded with the same Filename (single self-contained .gltf
+    // with base64-inlined buffers).
     const GLTFTestCase GLTFCases[] = {
-        { "Box/glTF",               "Box.gltf" },
-        { "CesiumMilkTruck/glTF",   "CesiumMilkTruck.gltf" },
-        { "ChronographWatch/glTF",  "ChronographWatch.gltf" },
-        { "DamagedHelmet/glTF",     "DamagedHelmet.gltf" },
-        { "Lantern/glTF",           "Lantern.gltf" },
-        { "SciFiHelmet/glTF",       "SciFiHelmet.gltf" },
+        { "Box/glTF",               "Box.gltf",              true  },
+        { "CesiumMilkTruck/glTF",   "CesiumMilkTruck.gltf",  true  },
+        { "ChronographWatch/glTF",  "ChronographWatch.gltf", false },
+        { "DamagedHelmet/glTF",     "DamagedHelmet.gltf",    true  },
+        { "Lantern/glTF",           "Lantern.gltf",          false },
+        { "SciFiHelmet/glTF",       "SciFiHelmet.gltf",      false },
     };
 
-    const GLTFTestCase GLBCases[] = {
+    const GLBTestCase GLBCases[] = {
         { "2CylinderEngine/glTF-Binary",  "2CylinderEngine.glb" },
         { "Box/glTF-Binary",              "Box.glb" },
         { "CesiumMilkTruck/glTF-Binary",  "CesiumMilkTruck.glb" },
@@ -388,9 +438,9 @@ int main()
     };
 
     for (const GLTFTestCase& Case : GLTFCases)
-        TestGLTFReadWrite(testFilesDir / Case.SubDir, Case.Filename, outputDir);
+        TestGLTFReadWrite(testFilesDir / Case.SubDir, Case.Filename, outputDir, Case.bHasEmbedded);
 
-    for (const GLTFTestCase& Case : GLBCases)
+    for (const GLBTestCase& Case : GLBCases)
         TestGLBReadWrite(testFilesDir / Case.SubDir, Case.Filename, outputDir);
 
     TestOBJReadWrite(testFilesDir, "bunny.obj", outputDir);

@@ -19,17 +19,20 @@ if "%OUT:~-1%"=="\" set "OUT=%OUT:~0,-1%"
 
 REM 2CylinderEngine -- legacy repo only
 call :get %MODELS% 2CylinderEngine glTF-Binary 2CylinderEngine.glb
+call :get %MODELS% 2CylinderEngine glTF-Embedded 2CylinderEngine.gltf
 
 REM Box
 call :get %ASSETS% Box glTF Box.gltf
 call :get %ASSETS% Box glTF Box0.bin
 call :get %ASSETS% Box glTF-Binary Box.glb
+call :get %ASSETS% Box glTF-Embedded Box.gltf
 
 REM CesiumMilkTruck
 call :get %ASSETS% CesiumMilkTruck glTF CesiumMilkTruck.gltf
 call :get %ASSETS% CesiumMilkTruck glTF CesiumMilkTruck_data.bin
 call :get %ASSETS% CesiumMilkTruck glTF CesiumMilkTruck.jpg
 call :get %ASSETS% CesiumMilkTruck glTF-Binary CesiumMilkTruck.glb
+call :get %ASSETS% CesiumMilkTruck glTF-Embedded CesiumMilkTruck.gltf
 
 REM ChronographWatch
 call :get %ASSETS% ChronographWatch glTF ChronographWatch.gltf
@@ -53,6 +56,7 @@ call :get %ASSETS% DamagedHelmet glTF Default_emissive.jpg
 call :get %ASSETS% DamagedHelmet glTF Default_metalRoughness.jpg
 call :get %ASSETS% DamagedHelmet glTF Default_normal.jpg
 call :get %ASSETS% DamagedHelmet glTF-Binary DamagedHelmet.glb
+call :get %ASSETS% DamagedHelmet glTF-Embedded DamagedHelmet.gltf
 
 REM Lantern
 call :get %ASSETS% Lantern glTF Lantern.gltf
