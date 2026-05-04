@@ -16,6 +16,9 @@ gradientspace_demo
 # macOS Finder metadata
 .DS_Store
 
+# Claude Code per-user settings
+.claude/
+
 
 # User-specific files
 *.rsuser
